@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>English Mastery Engine v5.2 - Bottom Nav</title>
+    <style>
+        :root { 
+            --main: #4A90E2; --success: #27AE60; --wrong: #E74C3C; --bg: #F4F7F9; --card: #FFFFFF; --lock: #94A3B8; --warning: #F1C40F; --critical: #991B1B; 
+            --safe-top: env(safe-area-inset-top);
+            --safe-bottom: env(safe-area-inset-bottom);
+        }
+        
+        body { 
+            font-family: 'PingFang SC', system-ui; 
+            background: var(--bg); 
+            margin: 0; 
+            overflow: hidden; 
+            width: 100%; 
+            height: 100vh;
+            position: relative;
+            -webkit-touch-callout: none;
+        }
+
+        /* 修改：Header 现在变更为底部固定栏 */
+        .header { 
+            background: var(--main); color: white; 
+            /* 适配 iOS 底部安全区 */
+            padding: 12px 20px calc(var(--safe-bottom) + 12px); 
+            display: flex; justify-content: space-between; align-items: center; 
+            position: fixed; 
+            bottom: 0; left: 0; right: 0;
+            z-index: 9999; /* 确保在最上层 */
+            box-shadow: 0 -4px 15px rgba(0,0,0,0.1);
+            border-radius: 20px 20px 0 0;
+        }
+
+        .nav-tabs { display: flex; background: rgba(0,0,0,0.1); border-radius: 20px; padding: 3px; }
+        .nav-tab { padding: 6px 15px; border-radius: 18px; font-size: 13px; cursor: pointer; transition: 0.3s; }
+        .nav-tab.active { background: white; color: var(--main); font-weight: bold; }
+
+        /* 修改：Container 现在需要避开底部栏 */
+        .container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+            position: absolute;
+            top: var(--safe-top); 
+            /* 为底部留出足够空间：60px内容 + 安全高度 */
+            bottom: calc(70px + var(--safe-bottom)); 
+            left: 0; right: 0;
+            padding: 10px 15px;
+            overflow-y: auto; 
+            -webkit-overflow-scrolling: touch;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+
+        #view-plan { display: flex; flex-direction: column; gap: 15px; }
+        .quiz-view { 
+            background: var(--card); border-radius: 24px; padding: 25px 20px; 
+            text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.05); 
+            min-height: 260px; display: flex; flex-direction: column; 
+            justify-content: center; align-items: center; 
+        }
+
+        .plan-essentials { display: flex; flex-direction: column; gap: 12px; padding-bottom: 20px; }
+        .settings-bar { background: #E2E8F0; padding: 10px; border-radius: 12px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; font-size: 13px; color: #475569; }
+        .settings-group { display: flex; align-items: center; gap: 5px; }
+        .settings-bar select { border: 1px solid #CBD5E1; border-radius: 6px; padding: 4px 6px; outline: none; background: white; font-size: 13px; }
+        
+        .plan-summary { background: white; border-radius: 20px; padding: 15px 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-left: 6px solid var(--main); display: flex; justify-content: space-between; align-items: center; }
+        .stats-card { background: white; border-radius: 20px; padding: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .chart-container { height: 60px; display: flex; align-items: flex-end; gap: 8px; padding-top: 10px; justify-content: space-around; }
+        .chart-bar { background: #E2E8F0; width: 100%; border-radius: 4px 4px 0 0; position: relative; transition: height 0.5s; }
+        .chart-bar.active { background: var(--main); }
+        .chart-label { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #64748B; }
+        .chart-day { font-size: 9px; color: #94A3B8; margin-top: 5px; text-align: center; }
+        
+        .sonic-capsule { background: #EBF4FF; width: 110px; height: 44px; border-radius: 22px; display: flex; align-items: center; justify-content: center; gap: 4px; cursor: pointer; border: 2px solid var(--main); transition: 0.2s; }
+        .sonic-capsule:active { transform: scale(0.96); }
+        .wave-bar { width: 3px; background: var(--main); border-radius: 2px; height: 10px; }
+        .sonic-capsule.playing .wave-bar { animation: wave 0.5s infinite ease-in-out alternate; }
+        @keyframes wave { from { height: 6px; } to { height: 20px; } }
+        
+        .word-input { 
+            border: none; border-bottom: 4px solid #E2E8F0; font-size: 36px; width: 85%; text-align: center; outline: none; margin: 15px 0; color: var(--main); font-weight: bold; background: transparent; transition: 0.2s; border-radius: 0; -webkit-appearance: none;
+            -webkit-user-select: text !important;
+        }
+        .word-input.correct { color: var(--success); border-bottom-color: var(--success); }
+        .word-input.error { color: var(--wrong); border-bottom-color: var(--wrong); animation: shake 0.4s; }
+        .word-input.warning { color: var(--warning); border-bottom-color: var(--warning); }
+        
+        .answer-hint { font-size: 28px; color: var(--wrong); font-weight: bold; margin-top: 5px; letter-spacing: 1px; background: #FFF5F5; padding: 6px 20px; border-radius: 10px; border: 2px dashed var(--wrong); }
+        .collapse-box { background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
+        .collapse-box.locked { background: #F1F5F9; border-left: 5px solid var(--lock); opacity: 0.8; }
+        .collapse-header { padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .collapse-content { display: none; padding: 5px 0; background: #FFF; border-top: 1px solid #EDF2F7; }
+        .collapse-content.show { display: block; }
+        
+        .lib-toolbar { background: #F8FAFC; padding: 12px 18px; display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid #E2E8F0; }
+        .toolbar-top { display: flex; justify-content: space-between; align-items: center; }
+        .search-box { width: 100%; padding: 10px 12px; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 14px; outline: none; box-sizing: border-box; }
+        
+        .word-item { padding: 12px 18px; border-bottom: 1px solid #F7FAFC; display: flex; justify-content: space-between; align-items: center; }
+        .btn-mini { padding: 5px 10px; font-size: 12px; background: #FFF; border: 1px solid #CBD5E1; border-radius: 6px; cursor: pointer; color: #475569; font-weight: bold; }
+        .btn-mini:active { background: #F1F5F9; }
+        .btn-action { background: var(--main); color: white; border: none; padding: 12px 24px; border-radius: 12px; font-weight: bold; margin-top: 10px; cursor: pointer; font-size: 16px; }
+        .btn-action:active { opacity: 0.9; }
+
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+        .hidden { display: none !important; }
+        .summary-card { text-align: left; width: 100%; }
+        .summary-stat { font-size: 20px; color: var(--main); font-weight: bold; margin-bottom: 15px; text-align: center; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .wrong-eval-item { display: flex; justify-content: space-between; font-size: 13px; padding: 8px 0; border-bottom: 1px dashed #eee; }
+        .eval-tag { padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; }
+        .tag-critical { background: #fee2e2; color: #b91c1c; border: 1px solid #ef4444; } 
+        .tag-hard { background: #ffedd5; color: #ea580c; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="view-plan">
+        <div id="quiz-box" class="quiz-view">
+            <div id="cn-hint" style="font-size: 24px; font-weight: bold; color: #1E293B;">Get Ready!</div>
+            <div id="encourage-msg" style="font-size: 13px; color: var(--main); margin: 6px 0; height: 18px;"></div>
+            <div id="playBtn" class="sonic-capsule" onclick="handlePlayClick()">
+                <div class="wave-bar" style="animation-delay: 0s;"></div><div class="wave-bar" style="animation-delay: 0.1s;"></div>
+                <div class="wave-bar" style="animation-delay: 0.2s;"></div><div class="wave-bar" style="animation-delay: 0.3s;"></div>
+            </div>
+            <input type="text" id="main-input" class="word-input" placeholder="..." autocomplete="off" autocapitalize="off" spellcheck="false" disabled>
+            <div id="hint-box"></div><div id="feedback" style="height:30px; font-weight:bold; font-size:22px;"></div>
+        </div>
+
+        <div class="plan-essentials">
+            <div class="settings-bar">
+                <div class="settings-group">
+                    <span>Range:</span>
+                    <select id="startUnit" onchange="changeUnitRange()"></select>
+                    <span>~</span>
+                    <select id="endUnit" onchange="changeUnitRange()"></select>
+                </div>
+                <div class="settings-group">
+                    <span>Words:</span>
+                    <select id="limitSelect" onchange="changeLimit()">
+                        <option value="15">15</option><option value="20">20</option><option value="25">25</option><option value="30">30</option>
+                    </select>
+                </div>
+                <div class="settings-group">
+                    <span>Voice:</span>
+                    <select id="voiceEngineSelect" onchange="changeVoiceEngine()">
+                        <option value="auto">Auto</option><option value="cloud">Cloud</option><option value="system">System</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 4px; margin-top: 4px;">
+                    <button class="btn-mini" onclick="backupData()">Export</button>
+                    <button class="btn-mini" onclick="triggerImportAll()">Import</button>
+                    <input type="file" id="importFile" class="hidden" accept=".json" onchange="restoreData(event)">
+                </div>
+            </div>
+
+            <div class="plan-summary">
+                <div><span style="font-size: 11px; color: #94A3B8;">Progress</span><br><b id="progress-text" style="font-size: 16px; color: var(--main);">0 / 0</b></div>
+                <div style="text-align: right;"><span style="font-size: 11px; color: #94A3B8;">Streak</span><br><span style="color: #FF4500; font-weight: bold; font-size: 16px;"><span id="streak-count">0</span> Days</span></div>
+            </div>
+
+            <div class="stats-card">
+                <div style="font-size: 11px; color: #64748B; margin-bottom: 5px; font-weight: bold;">Activity</div>
+                <div id="activity-chart" class="chart-container"></div>
+            </div>
+
+            <div id="collapse-container" class="collapse-box">
+                <div class="collapse-header" onclick="manualToggle()">
+                    <span style="font-size:13px; font-weight:bold; color:#475569;">📘 Today's Vocabulary</span>
+                    <span id="lock-status" style="font-size: 11px; color: #94A3B8;">🔓 Ready</span>
+                </div>
+                <div id="today-content" class="collapse-content">
+                    <div id="today-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="view-all" class="hidden">
+        <div style="background:white; border-radius:15px; overflow:hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.03);">
+            <div class="lib-toolbar">
+                <div class="toolbar-top">
+                    <span style="font-size: 14px; font-weight: bold; color: #64748B;">Library:</span>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn-mini" onclick="exportCurrentLibrary()">Export Lib</button>
+                        <button class="btn-mini" onclick="triggerImportLib()">Import Lib</button>
+                        <input type="file" id="importLibFile" class="hidden" accept=".json" onchange="importToLibrary(event)">
+                    </div>
+                </div>
+                <input type="text" id="libSearch" class="search-box" placeholder="Search..." oninput="renderFullList()">
+            </div>
+            <div id="full-list-container"></div>
+        </div>
+    </div>
+</div>
+
+<div class="header">
+    <select id="termSelect" onchange="switchTerm()" style="background:none; border:none; color:white; font-weight:bold; font-size:16px; outline:none;">
+        <optgroup label="Grade 3"><option value="3-1">3rd Up</option><option value="3-2">3rd Down</option></optgroup>
+        <optgroup label="Grade 4"><option value="4-1">4th Up</option><option value="4-2">4th Down</option></optgroup>
+        <optgroup label="Grade 5"><option value="5-1">5th Up</option><option value="5-2">5th Down</option></optgroup>
+        <optgroup label="Grade 6"><option value="6-1">6th Up</option><option value="6-2">6th Down</option></optgroup>
+    </select>
+    <div class="nav-tabs">
+        <div class="nav-tab active" id="tab-plan" onclick="switchTab('plan')">Daily Plan</div>
+        <div class="nav-tab" id="tab-all" onclick="switchTab('all')">Word List</div>
+    </div>
+</div>
+
+<script>
+// --- 原有 JS 逻辑保持不变 ---
+const PRAISE_LIST = ["Amazing!", "Brilliant!", "Excellent!", "Perfect!", "Well done!", "Spot on!"];
+const DEFAULT_DICT = {
+    "3-1": {
+        "U1": [{en:"I",cn:"我"},{en:"am",cn:"是"},{en:"hello",cn:"你好"}],
+        "U2": [{en:"morning",cn:"早晨"},{en:"name",cn:"名字"},{en:"please",cn:"请"}],
+        "U3": [{en:"panda",cn:"熊猫"},{en:"cat",cn:"猫"},{en:"dog",cn:"狗"}],
+        "U4": [{en:"one",cn:"一"},{en:"two",cn:"二"},{en:"three",cn:"三"}]
+    },
+    "3-2": { "U1": [{en:"apple",cn:"苹果"},{en:"banana",cn:"香蕉"}] },
+    "4-1": { "U1": [{en:"left",cn:"左边"},{en:"right",cn:"右边"}] }
+};
+
+let DICT_DB = JSON.parse(localStorage.getItem('JX_CUSTOM_DICT') || JSON.stringify(DEFAULT_DICT));
+let appData = JSON.parse(localStorage.getItem('JX_ENGINE_V95_SONIC') || '{"mastery":{}, "lastSeen":{}, "planLimit":15, "lastDate":"", "streak":0, "curTerm":"3-1", "curve":[], "voiceEngine":"auto", "termSessions":{}, "unitRange":{}}');
+
+let currentSession = { tasks: [], idx: 0 };
+let isLocked = false, hasShownHint = false, localWrongCount = 0;
+let isReplayed = false; 
+let wrongQueue = [];
+let audioCache = {};
+let sessionLog = { total: 0, firstPass: 0, errors: {}, startTime: null };
+
+function focusAndPopupKeyboard() {
+    const input = document.getElementById('main-input');
+    if (input) {
+        input.disabled = false;
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+    }
+}
+
+function initApp() {
+    const today = new Date().toLocaleDateString();
+    document.getElementById('termSelect').value = appData.curTerm;
+    document.getElementById('limitSelect').value = appData.planLimit;
+    document.getElementById('voiceEngineSelect').value = appData.voiceEngine || 'auto';
+    
+    if(appData.lastDate !== today) {
+        appData.lastDate = today;
+        appData.termSessions = {}; 
+        if(!appData.curve) appData.curve = [];
+        appData.curve.push({date: today, count: 0});
+        if(appData.curve.length > 7) appData.curve.shift();
+    }
+
+    updateUnitSelects();
+    loadTermSession(appData.curTerm);
+    save(); updateUI(); renderTodayList(); renderQuiz(); renderCurve();
+}
+
+function updateUnitSelects() {
+    const units = Object.keys(DICT_DB[appData.curTerm] || {});
+    const startSel = document.getElementById('startUnit');
+    const endSel = document.getElementById('endUnit');
+    const options = units.map(u => `<option value="${u}">${u}</option>`).join('');
+    
+    startSel.innerHTML = options;
+    endSel.innerHTML = options;
+
+    if (appData.unitRange && appData.unitRange[appData.curTerm]) {
+        startSel.value = appData.unitRange[appData.curTerm].start;
+        endSel.value = appData.unitRange[appData.curTerm].end;
+    } else {
+        startSel.value = units[0] || "";
+        endSel.value = units[units.length - 1] || "";
+    }
+}
+
+function changeUnitRange() {
+    const start = document.getElementById('startUnit').value;
+    const end = document.getElementById('endUnit').value;
+    if(!appData.unitRange) appData.unitRange = {};
+    appData.unitRange[appData.curTerm] = { start, end };
+    appData.termSessions[appData.curTerm] = null; 
+    save();
+    loadTermSession(appData.curTerm);
+    renderQuiz();
+    renderTodayList();
+}
+
+function loadTermSession(term) {
+    if (!appData.termSessions[term]) {
+        const units = Object.keys(DICT_DB[term] || {});
+        const range = appData.unitRange[term] || { start: units[0], end: units[units.length-1] };
+        const sIdx = units.indexOf(range.start);
+        const eIdx = units.indexOf(range.end);
+        
+        let allPool = [];
+        units.forEach((u, i) => {
+            if(i >= sIdx && i <= eIdx) allPool = allPool.concat(DICT_DB[term][u]);
+        });
+
+        let now = Date.now();
+        let newTasks = allPool.sort((a, b) => {
+            let m1 = appData.mastery[a.en] || 0;
+            let m2 = appData.mastery[b.en] || 0;
+            let last1 = appData.lastSeen ? (appData.lastSeen[a.en] || 0) : 0;
+            let last2 = appData.lastSeen ? (appData.lastSeen[b.en] || 0) : 0;
+            let days1 = (now - last1) / 86400000;
+            let days2 = (now - last2) / 86400000;
+            return (m1 / (days1 + 1)) - (m2 / (days2 + 1));
+        }).slice(0, Math.min(appData.planLimit, allPool.length));
+        
+        appData.termSessions[term] = { tasks: newTasks, idx: 0 };
+    }
+    currentSession = appData.termSessions[term];
+    sessionLog.total = currentSession.tasks.length;
+    sessionLog.firstPass = 0;
+    sessionLog.errors = {};
+    sessionLog.startTime = new Date();
+    preloadAudio();
+}
+
+function preloadAudio() {
+    if (appData.voiceEngine === 'system') return;
+    currentSession.tasks.forEach(task => {
+        const word = task.en;
+        if (!audioCache[word]) {
+            const audio = new Audio(`https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(word)}&type=2`);
+            audio.preload = "auto";
+            audioCache[word] = audio;
+        }
+    });
+}
+
+function renderCurve() {
+    const container = document.getElementById('activity-chart');
+    const today = new Date().toLocaleDateString();
+    let displayData = [...(appData.curve || [])];
+    while(displayData.length < 7) displayData.unshift({date: '', count: 0});
+    const maxVal = Math.max(...displayData.map(d => d.count), 5);
+    container.innerHTML = displayData.map(d => {
+        const height = (d.count / maxVal) * 100;
+        return `<div style="flex:1; display:flex; flex-direction:column; align-items:center;">
+                <div class="chart-bar ${d.date === today ? 'active' : ''}" style="height:${height}%">
+                    <span class="chart-label">${d.count > 0 ? d.count : ''}</span>
+                </div>
+                <div class="chart-day">${d.date ? d.date.split('/')[1]+'.'+d.date.split('/')[2] : ''}</div>
+            </div>`;
+    }).join('');
+}
+
+function renderQuiz() {
+    const input = document.getElementById('main-input');
+    if(currentSession.idx >= currentSession.tasks.length) {
+        if(wrongQueue.length > 0) {
+            currentSession.tasks = [...wrongQueue]; 
+            wrongQueue = []; 
+            currentSession.idx = 0;
+            preloadAudio();
+            alert("Starting Review Session!");
+        } else {
+            showSummaryReport(); 
+            unlockBox(); checkStreak(); return;
+        }
+    }
+    if(input) {
+        document.getElementById('cn-hint').innerText = "???"; document.getElementById('encourage-msg').innerText = "Tap speaker";
+        input.value = ""; input.className = "word-input"; input.disabled = true;
+        document.getElementById('hint-box').innerHTML = ""; document.getElementById('feedback').innerText = "";
+        document.getElementById('progress-text').innerText = `${currentSession.idx} / ${currentSession.tasks.length}`;
+        isReplayed = false; 
+    }
+}
+
+function showSummaryReport() {
+    const accuracy = ((sessionLog.firstPass / sessionLog.total) * 100).toFixed(1);
+    const duration = Math.floor((new Date() - sessionLog.startTime) / 1000);
+    const timeStr = duration > 60 ? `${Math.floor(duration/60)}m ${duration%60}s` : `${duration}s`;
+    
+    let errorEvalHtml = "";
+    const sortedErrors = Object.entries(sessionLog.errors).sort((a,b) => b[1] - a[1]);
+    if(sortedErrors.length > 0) {
+        errorEvalHtml = `<div style="margin-top:15px; font-size:14px; font-weight:bold; color:#64748B; border-bottom: 2px solid #E2E8F0; padding-bottom:5px;">Weakness Analysis:</div>`;
+        sortedErrors.forEach(([word, count]) => {
+            const isCritical = count >= 3;
+            const tagClass = isCritical ? "tag-critical" : "tag-hard";
+            const tagText = isCritical ? "Critical" : "Needs Review";
+            errorEvalHtml += `
+                <div class="wrong-eval-item">
+                    <span style="${isCritical ? 'color:#b91c1c; font-weight:bold;' : ''}">${word}</span>
+                    <span class="eval-tag ${tagClass}">${tagText} (${count})</span>
+                </div>`;
+        });
+    } else {
+        errorEvalHtml = `<div style="text-align:center; color:var(--success); margin-top:20px; font-weight:bold;">Perfect Session! No errors.</div>`;
+    }
+
+    document.getElementById('quiz-box').innerHTML = `
+        <div class="summary-card">
+            <div class="summary-stat">Accuracy: ${accuracy}%</div>
+            <div style="font-size:13px; color:#64748B; text-align:center; margin-bottom:10px;">⏱ Time: ${timeStr}</div>
+            <div style="font-size:13px; color:#64748B;">Total: ${sessionLog.total} | Mastered: ${sessionLog.firstPass}</div>
+            <div style="max-height: 200px; overflow-y: auto; margin-top:10px;">${errorEvalHtml}</div>
+            <button class="btn-action" style="width:100%; margin-top:20px;" onclick="location.reload()">Finish</button>
+        </div>`;
+}
+
+function handlePlayClick() {
+    const input = document.getElementById('main-input');
+    input.disabled = false;
+    input.focus(); 
+    if(!input.disabled) { isReplayed = true; }
+    startDictation();
+}
+
+function startDictation() {
+    if(currentSession.idx >= currentSession.tasks.length) return;
+    lockBox(); 
+    const currentWord = currentSession.tasks[currentSession.idx].en;
+    speakWord(currentWord, () => {
+        const input = document.getElementById('main-input');
+        input.disabled = false;
+        document.getElementById('cn-hint').innerText = currentSession.tasks[currentSession.idx].cn;
+        document.getElementById('encourage-msg').innerText = "Spell it now";
+        setTimeout(() => { input.focus(); }, 50);
+    });
+}
+
+function handleInput(e) {
+    const val = e.target.value.trim().toLowerCase();
+    const target = currentSession.tasks[currentSession.idx].en.toLowerCase();
+    e.target.classList.remove('error', 'warning');
+
+    if(val === target) {
+        e.target.classList.add('correct'); 
+        document.getElementById('feedback').innerText = PRAISE_LIST[Math.floor(Math.random()*PRAISE_LIST.length)];
+        const isReviewing = wrongQueue.some(w => w.en.toLowerCase() === target);
+        if(!isReviewing && !isReplayed && localWrongCount === 0 && !hasShownHint) {
+            sessionLog.firstPass++;
+        }
+        appData.mastery[target] = (appData.mastery[target]||0) + (hasShownHint ? 0 : 1);
+        if(!appData.lastSeen) appData.lastSeen = {};
+        appData.lastSeen[target] = Date.now(); 
+        currentSession.idx++; 
+        const today = new Date().toLocaleDateString();
+        let pt = appData.curve.find(p => p.date === today); 
+        if(pt) pt.count++; else appData.curve.push({date: today, count: 1});
+        save();
+        
+        setTimeout(() => { 
+            renderQuiz(); 
+            renderTodayList(); 
+            startDictation(); 
+        }, 800);
+        return;
+    }
+    if (val.length >= target.length && val !== target) {
+        triggerError(e.target, target);
+    } else if (val.length > 0 && !target.startsWith(val)) {
+        e.target.classList.add('error');
+    }
+}
+
+function triggerError(el, target) {
+    el.classList.add('error');
+    localWrongCount++; 
+    sessionLog.errors[target] = (sessionLog.errors[target] || 0) + 1;
+    if(!wrongQueue.find(w => w.en === target)) wrongQueue.push(currentSession.tasks[currentSession.idx]);
+    if(localWrongCount >= 2) { 
+        hasShownHint = true; 
+        document.getElementById('hint-box').innerHTML = `<div class="answer-hint">${target}</div>`; 
+    }
+}
+
+function speakWord(word, onEnd) {
+    const engine = appData.voiceEngine || 'auto';
+    const btn = document.getElementById('playBtn');
+    if(btn) btn.classList.add('playing');
+    if (engine === 'system') runSystemTTS(word, onEnd);
+    else runCloudTTS(word, onEnd, engine === 'auto'); 
+}
+
+function runCloudTTS(word, onEnd, isAuto) {
+    const audio = audioCache[word] || new Audio(`https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(word)}&type=2`);
+    audio.onended = () => {
+        if(document.getElementById('playBtn')) document.getElementById('playBtn').classList.remove('playing');
+        if (onEnd) onEnd();
+    };
+    audio.onerror = () => isAuto ? runSystemTTS(word, onEnd) : (onEnd && onEnd());
+    const promise = audio.play();
+    if (promise !== undefined) { promise.catch(() => { if(isAuto) runSystemTTS(word, onEnd); else onEnd && onEnd(); }); }
+}
+
+function runSystemTTS(word, onEnd) {
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(word === "I" ? "I " : word);
+    utter.lang = 'en-US'; utter.rate = 0.85; 
+    utter.onend = () => {
+        if(document.getElementById('playBtn')) document.getElementById('playBtn').classList.remove('playing');
+        if (onEnd) onEnd();
+    };
+    window.speechSynthesis.speak(utter);
+}
+
+function switchTerm() {
+    appData.curTerm = document.getElementById('termSelect').value;
+    updateUnitSelects();
+    appData.termSessions[appData.curTerm] = null;
+    loadTermSession(appData.curTerm);
+    save(); renderTodayList(); renderQuiz();
+}
+
+function changeLimit() {
+    appData.planLimit = parseInt(document.getElementById('limitSelect').value);
+    appData.termSessions = {}; 
+    save(); location.reload();
+}
+
+function changeVoiceEngine() { appData.voiceEngine = document.getElementById('voiceEngineSelect').value; save(); }
+function triggerImportLib() { document.getElementById('importLibFile').click(); }
+function triggerImportAll() { document.getElementById('importFile').click(); }
+
+function importToLibrary(event) {
+    const file = event.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            let data = JSON.parse(e.target.result);
+            DICT_DB[appData.curTerm] = data;
+            localStorage.setItem('JX_CUSTOM_DICT', JSON.stringify(DICT_DB));
+            appData.termSessions = {}; save(); location.reload();
+        } catch (err) { alert("Parse Error"); }
+    };
+    reader.readAsText(file);
+}
+
+function exportCurrentLibrary() {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(DICT_DB[appData.curTerm] || {}));
+    const dl = document.createElement('a'); dl.setAttribute("href", dataStr); dl.setAttribute("download", `lib_${appData.curTerm}.json`);
+    dl.click();
+}
+
+function backupData() {
+    const dl = document.createElement('a'); dl.setAttribute("href", "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData)));
+    dl.setAttribute("download", `backup.json`); dl.click();
+}
+
+function restoreData(event) {
+    const file = event.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try { appData = JSON.parse(e.target.result); save(); location.reload(); } catch (err) { alert("Error"); }
+    };
+    reader.readAsText(file);
+}
+
+function switchTab(tab) {
+    document.getElementById('view-plan').className = tab === 'plan' ? '' : 'hidden';
+    document.getElementById('view-all').className = tab === 'all' ? '' : 'hidden';
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active'); 
+    if(tab === 'all') renderFullList();
+}
+
+function renderFullList() {
+    const container = document.getElementById('full-list-container');
+    const kw = document.getElementById('libSearch').value.toLowerCase();
+    const termDict = DICT_DB[appData.curTerm] || {};
+    let html = "";
+    Object.keys(termDict).forEach(unit => {
+        const filtered = termDict[unit].filter(w => w.en.toLowerCase().includes(kw) || w.cn.includes(kw));
+        if(filtered.length > 0) {
+            html += `<div style="padding:10px 18px; background:#f1f5f9; font-size:12px; font-weight:bold;">${unit}</div>`;
+            html += filtered.map(w => `<div class="word-item" onclick="speakWord('${w.en.replace(/'/g, "\\'")}')">
+                <div><b>${w.en}</b> <small>${w.cn}</small></div>
+                <div style="color:var(--main); font-size:11px;">M:${appData.mastery[w.en]||0}</div>
+            </div>`).join('');
+        }
+    });
+    container.innerHTML = html;
+}
+
+function checkStreak() {
+    const today = new Date().toLocaleDateString();
+    if(appData.lastFinishedDate !== today) { appData.streak++; appData.lastFinishedDate = today; save(); updateUI(); }
+}
+function lockBox() { isLocked = true; document.getElementById('collapse-container').classList.add('locked'); }
+function unlockBox() { isLocked = false; document.getElementById('collapse-container').classList.remove('locked'); }
+function manualToggle() { if(isLocked) return; document.getElementById('today-content').classList.toggle('show'); }
+
+function renderTodayList() {
+    document.getElementById('today-list').innerHTML = currentSession.tasks.map((w, idx) => `
+        <div class="word-item" onclick="speakWord('${w.en.replace(/'/g, "\\'")}')">
+            <div><b>${w.en}</b> <small>${w.cn}</small></div><div>${idx < currentSession.idx ? '✅' : '⏳'}</div>
+        </div>`).join('');
+}
+function save() { localStorage.setItem('JX_ENGINE_V95_SONIC', JSON.stringify(appData)); }
+function updateUI() { document.getElementById('streak-count').innerText = appData.streak; }
+document.getElementById('main-input').addEventListener('input', handleInput);
+initApp();
+</script>
+</body>
+</html>
